@@ -1,6 +1,8 @@
 ---
 title: "ggplot2 Guide - 05/24/17"
-output: html_notebook
+output: 
+  html_document: 
+    toc: yes
 ---
 
 ```{r}
