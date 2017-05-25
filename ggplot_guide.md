@@ -1,14 +1,11 @@
----
-title: "ggplot2 Guide - 05/24/17"
-output: 
-  html_document: 
-    toc: yes
-    keep_md: true
----
+# ggplot2 Guide - 05/24/17
 
-```{r}
+
+```r
 plot(cars)
 ```
+
+![](ggplot_guide_files/figure-html/unnamed-chunk-1-1.png)<!-- -->
 
 Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
 
