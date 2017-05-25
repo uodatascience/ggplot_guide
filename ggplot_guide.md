@@ -412,7 +412,19 @@ To use your own colors, use `scale_color_manual` or `scale_fill_manual`
 
 ## Facets
 
-(skipping for now)
+(Skipping detailed description for now... but)
+
+
+```r
+ggplot(diamonds, aes(x=carat, y=price))+
+  stat_density_2d(geom = "point", aes(size = ..density.., color = ..density..), 
+                  n=10, contour = F)+
+  scale_color_distiller(palette="RdPu")+
+  facet_grid(cut~color)
+```
+
+![](ggplot_guide_files/figure-html/unnamed-chunk-28-1.png)<!-- -->
+
 
 ## Coordinate Systems
 
@@ -449,7 +461,7 @@ ggplot(diamond_sub, aes(x=carat,y=price,color=price))+
   theme_minimal()
 ```
 
-![](ggplot_guide_files/figure-html/unnamed-chunk-28-1.png)<!-- -->
+![](ggplot_guide_files/figure-html/unnamed-chunk-29-1.png)<!-- -->
 
 
 ```r
@@ -458,7 +470,7 @@ ggplot(diamond_sub, aes(x=carat,y=price,color=price))+
   theme_void()
 ```
 
-![](ggplot_guide_files/figure-html/unnamed-chunk-29-1.png)<!-- -->
+![](ggplot_guide_files/figure-html/unnamed-chunk-30-1.png)<!-- -->
 
 ### Removing elements
 
@@ -479,7 +491,7 @@ ggplot(diamond_sub, aes(x=carat,y=price,color=price))+
   )
 ```
 
-![](ggplot_guide_files/figure-html/unnamed-chunk-30-1.png)<!-- -->
+![](ggplot_guide_files/figure-html/unnamed-chunk-31-1.png)<!-- -->
 
 And sometimes you just want to make a mockery of your audience's eyes like you've got your hands in the MS paint bucket again. Notice how since we are in a "g" rammar of "g" raphics ("plot") ("2") things work as we expect them to
 
@@ -498,7 +510,7 @@ ggplot(diamond_sub, aes(x=carat,y=price))+
   )
 ```
 
-![](ggplot_guide_files/figure-html/unnamed-chunk-31-1.png)<!-- -->
+![](ggplot_guide_files/figure-html/unnamed-chunk-32-1.png)<!-- -->
 
 A useful tool here is the direct specification of sizes with units. The general syntax for units are unit(number, "unit_type"), for example if you are trying to shout about how big those numbers are and dont understand what axis ticks are for
 
@@ -517,7 +529,7 @@ ggplot(diamond_sub, aes(x=carat,y=price))+
   )
 ```
 
-![](ggplot_guide_files/figure-html/unnamed-chunk-32-1.png)<!-- -->
+![](ggplot_guide_files/figure-html/unnamed-chunk-33-1.png)<!-- -->
 
 Uh oh, who is screwing with our medicine? Our text is now hopelessly buried beneath our arrows. We can fix that by adjusting our margins. The margins are set in the order top, right, bottom, left. Since that doesn't really make sense, they advise you to remember the phrase "trouble" and that actually works. Notice the inheritance. Even though we make settings for the x and y axis text specifically, it still retains our 24 point mistake. Margins can also be used with the plot.background to eliminate excess space, and can be set to negative numbers.
 
@@ -538,15 +550,397 @@ ggplot(diamond_sub, aes(x=carat,y=price))+
   )
 ```
 
-![](ggplot_guide_files/figure-html/unnamed-chunk-33-1.png)<!-- -->
+![](ggplot_guide_files/figure-html/unnamed-chunk-34-1.png)<!-- -->
 
 # Rendering
 
+Having plots in your R environment is one thing, but getting them out into the world or stuffed into your papers is quite another. Without explicitly specifying certain parameters like sizes and positions, your figure will end up with text crowded across the screen or nonevident without microscopy. It's always a good idea to make those specifications explicit with the theme() function, but some things require that ggplot has knowledge about the rendering environment.
+
 ## ggsave
+
+What happens when we just try to export our figure window?
+
+```r
+# Scales lets us change the y axis numbers from scientific notation to decimal notation
+library(scales)
+```
+
+```
+## Warning: package 'scales' was built under R version 3.3.2
+```
+
+```r
+g.price_density <- ggplot(diamond_sub, aes(x=price, y=..density.., fill=cut))+
+  geom_density(position="stack")+
+  scale_fill_brewer(palette="Set1", guide=guide_legend(title="Cut"))+
+  scale_y_continuous(name="Density", labels=comma)+
+  scale_x_continuous(name="Price")+
+  theme_minimal()+
+  theme(
+    panel.grid.major = element_blank(),
+    legend.position  = c(.8,.65)
+  )
+
+# Saving figure by clicking "export" from figure window
+```
+
+![](ggplot_guide_files/figure-html/Rplot01.png)
+
+Good god what have you done to the boy. Since the rendering is dependeng on the size of the plotting environment ggplot has rendered it into, our plot comes out looking very sad indeed.
+
+The basic tool for exporting ggplot figures is the function ggsave. It allows us to explicitly specify the size, resolution, rendering engine, etc. Ggplot has many saving "devices," or rendering engines, the basic categories of which are raster engines (like png) - which convert your plot into a series of pixels and color values, and vector engines (like pdf or svg) that leave the plot as a set of logical instructions. You should preserve your plots as vectors as long as you possibly can, as they are lossless representations of the image, and allow you to edit it by element in another program.
+
+
+```r
+ggsave("price_density_plot.png", g.price_density,
+       path="ggplot_guide_files/figure-html", # you can use relative or absolute paths
+       device="png",
+       width=unit(6,"in"), height=unit(4,"in"),
+       dpi=300
+)
+```
+
+![](ggplot_guide_files/figure-html/price_density_plot.png)
+Much better.
 
 ## Grid
 
+Ok, we might know what a statistical plot is, but what is a ggplot? Ggplot follows the [grid graphics model](https://www.stat.auckland.ac.nz/~paul/RGraphics/chapter5.pdf), which is a set of primitive graphical elements like circles, lines, rectangles, that have some notion of their position within a "viewport" (ggplot's panels). GRaphical OBjects in grid are called "grobs," and we can convert our plot to be able to directly manipulate its grobs.
+
+
+```r
+g.grob <- ggplotGrob(g.price_density)
+```
+
+Your plot's layout information is in its `layout`, `heights`, and `widths` attributes. Each of the numbers in the layout matrix corresponds to a width (for the "t"(op), and "b"(ottom) columns), or height (for the "l" and "r"). Each grob has its outer extent specified by these values, so the background has its top at position 1, left at position 1, bottom at 10 and right at 7 - the largest values of each, predictably. By default, heights and widths of undeclared elements are "null" or "grobheight" units that depend on the size of the viewport. You can set them explicitly as you might expect with `g.grob$heights[5] <- unit(5,"in")` or whatever. This becomes critical for ensuring axes across multiple plots are the same size.
+
+The "children" or "grobs" of the main grob object contain each of the literal graphical objects, and they behave just like the parent.
+
+
+```r
+g.grob$layout
+```
+
+```
+##    t l  b r  z clip       name
+## 18 1 1 10 7  0   on background
+## 1  5 3  5 3  5  off     spacer
+## 2  6 3  6 3  7  off     axis-l
+## 3  7 3  7 3  3  off     spacer
+## 4  5 4  5 4  6  off     axis-t
+## 5  6 4  6 4  1   on      panel
+## 6  7 4  7 4  9  off     axis-b
+## 7  5 5  5 5  4  off     spacer
+## 8  6 5  6 5  8  off     axis-r
+## 9  7 5  7 5  2  off     spacer
+## 10 4 4  4 4 10  off     xlab-t
+## 11 8 4  8 4 11  off     xlab-b
+## 12 6 2  6 2 12  off     ylab-l
+## 13 6 6  6 6 13  off     ylab-r
+## 14 6 4  6 4 14  off  guide-box
+## 15 3 4  3 4 15  off   subtitle
+## 16 2 4  2 4 16  off      title
+## 17 9 4  9 4 17  off    caption
+```
+
+```r
+g.grob$heights
+```
+
+```
+##  [1] 5.5pt                    0cm                     
+##  [3] 0cm                      0cm                     
+##  [5] 0cm                      1null                   
+##  [7] sum(2.75pt, 1grobheight) 1grobheight             
+##  [9] 0cm                      5.5pt
+```
+
+```r
+g.grob$widths
+```
+
+```
+## [1] 5.5pt                   1grobwidth              sum(1grobwidth, 2.75pt)
+## [4] 1null                   0cm                     0cm                    
+## [7] 5.5pt
+```
+
+```r
+g.grob$grobs
+```
+
+```
+## [[1]]
+## zeroGrob[plot.background..zeroGrob.2477] 
+## 
+## [[2]]
+## zeroGrob[NULL] 
+## 
+## [[3]]
+## absoluteGrob[GRID.absoluteGrob.2450] 
+## 
+## [[4]]
+## zeroGrob[NULL] 
+## 
+## [[5]]
+## zeroGrob[NULL] 
+## 
+## [[6]]
+## gTree[panel-1.gTree.2432] 
+## 
+## [[7]]
+## absoluteGrob[GRID.absoluteGrob.2444] 
+## 
+## [[8]]
+## zeroGrob[NULL] 
+## 
+## [[9]]
+## zeroGrob[NULL] 
+## 
+## [[10]]
+## zeroGrob[NULL] 
+## 
+## [[11]]
+## zeroGrob[NULL] 
+## 
+## [[12]]
+## titleGrob[axis.title.x..titleGrob.2435] 
+## 
+## [[13]]
+## titleGrob[axis.title.y..titleGrob.2438] 
+## 
+## [[14]]
+## zeroGrob[NULL] 
+## 
+## [[15]]
+## TableGrob (3 x 3) "guide-box": 2 grobs
+##                                     z     cells                  name
+## 99_281d9cc4e523da50b6c36763eedff87c 1 (2-2,2-2)                guides
+##                                     0 (1-3,1-3) legend.box.background
+##                                               grob
+## 99_281d9cc4e523da50b6c36763eedff87c gtable[layout]
+##                                     zeroGrob[NULL]
+## 
+## [[16]]
+## zeroGrob[plot.subtitle..zeroGrob.2475] 
+## 
+## [[17]]
+## zeroGrob[plot.title..zeroGrob.2474] 
+## 
+## [[18]]
+## zeroGrob[plot.caption..zeroGrob.2476]
+```
+
+We can see that deep down at the core of our plot is just a bunch of polygons. I arrived at these numbers by just listing them recursively (calling `g.grob$grobs`, seeing which one I needed, etc.). We can directly edit the graphical properties of these polygons (`gp`) as you might expect. We then 
+
+
+```r
+# We have to load the grid library to do some commands, might as well load it now
+library(grid)
+
+g.grob$grobs[[6]]$children[[3]]$children
+```
+
+```
+## (polygon[geom_ribbon.polygon.2410], polygon[geom_ribbon.polygon.2412], polygon[geom_ribbon.polygon.2414], polygon[geom_ribbon.polygon.2416], polygon[geom_ribbon.polygon.2418])
+```
+
+```r
+g.grob$grobs[[6]]$children[[3]]$children[[1]]$gp$lwd <- 10
+g.grob$grobs[[6]]$children[[3]]$children[[1]]$gp$fill <- "#FF51FD"
+g.grob$grobs[[6]]$children[[3]]$children[[1]]$gp$col <- "yellow"
+
+# grid.newpage() clears the current viewport (so your plots don't just keep stacking up)
+# grid.draw() redraws our grob in the current viewport
+
+grid.newpage()
+grid.draw(g.grob)
+```
+
+![](ggplot_guide_files/figure-html/unnamed-chunk-39-1.png)<!-- -->
+
+I have no idea why you keep wanting to do this to your plots. Lets try to use grid to arrange two plots that we couldn't using ggplot alone. Let's try to get density plots next to our scatterplot
+
+
+```r
+# We'll need "gtable" to tread the grids like a table
+library(gtable)
+
+g.scatter <- ggplot(diamond_sub, aes(x=carat, y=price, color=cut))+
+  geom_point(size=0.5)+
+  scale_color_brewer(palette="Set1", guide=guide_legend(title="Cut"))+
+  scale_y_continuous(name="Price")+
+  scale_x_continuous(name="Carat")+
+  theme_minimal()+
+  theme(
+    legend.position=c(0.15,0.8),
+    legend.background = element_rect(fill="#EFEFEF")
+  )
+
+g.density_x <- ggplot(diamond_sub, aes(x=carat, y=..density.., fill=cut))+
+  geom_density(position="stack")+
+  scale_fill_brewer(palette="Set1")+
+  #scale_x_continuous(expand=c(0,0))+
+  theme_void()+
+  theme(
+    legend.position="none"
+  )
+
+g.density_y <- ggplot(diamond_sub, aes(x=price, y=..density.., fill=cut))+
+  geom_density(position="stack")+
+  scale_fill_brewer(palette="Set1")+
+  #scale_x_continuous(expand=c(0,0))+
+  coord_flip()+ # Flip the coordinates so x is y, y i x
+  theme_void()+
+  theme(
+    legend.position="none"
+  )
+
+# Make our grobs
+g.scatter_grob   <- ggplotGrob(g.scatter)
+g.density_x_grob <- ggplotGrob(g.density_x)
+g.density_y_grob <- ggplotGrob(g.density_y)
+
+# Add a row and a column to the scatterplot where we'll add our density plots
+g.scatter_grob <- gtable_add_rows(g.scatter_grob,
+                                  unit(0.1,"npc"), # npc is a unit that's defined by the viewport
+                                  0) # position - we add to the top
+g.scatter_grob <- gtable_add_cols(g.scatter_grob,
+                                  unit(0.1,"npc"), # npc is a unit that's defined by the viewport
+                                  -1) # position - we add on the right
+
+# Let's check our layout
+g.scatter_grob$layout
+```
+
+```
+##     t l  b r  z clip       name
+## 18  2 1 11 7  0   on background
+## 1   6 3  6 3  5  off     spacer
+## 2   7 3  7 3  7  off     axis-l
+## 3   8 3  8 3  3  off     spacer
+## 4   6 4  6 4  6  off     axis-t
+## 5   7 4  7 4  1   on      panel
+## 6   8 4  8 4  9  off     axis-b
+## 7   6 5  6 5  4  off     spacer
+## 8   7 5  7 5  8  off     axis-r
+## 9   8 5  8 5  2  off     spacer
+## 10  5 4  5 4 10  off     xlab-t
+## 11  9 4  9 4 11  off     xlab-b
+## 12  7 2  7 2 12  off     ylab-l
+## 13  7 6  7 6 13  off     ylab-r
+## 14  7 4  7 4 14  off  guide-box
+## 15  4 4  4 4 15  off   subtitle
+## 16  3 4  3 4 16  off      title
+## 17 10 4 10 4 17  off    caption
+```
+
+```r
+# Now we add the density grobs
+g.scatter_grob <- gtable_add_grob(g.scatter_grob, g.density_x_grob, 
+                                  t = 1, l = 4, b = 1, r = 7)
+g.scatter_grob <- gtable_add_grob(g.scatter_grob, g.density_y_grob, 
+                                  t = 4, l = 8, b = 7, r = 8)
+
+grid.newpage()
+grid.draw(g.scatter_grob)
+```
+
+![](ggplot_guide_files/figure-html/unnamed-chunk-40-1.png)<!-- -->
+
+Uh oh, we're a little misaligned. We can expand our x-axes to make the density plots fill the entire space
+
+
+```r
+# We'll need "gtable" to tread the grids like a table
+
+g.scatter <- ggplot(diamond_sub, aes(x=carat, y=price, color=cut))+
+  geom_point(size=0.5)+
+  scale_color_brewer(palette="Set1", guide=guide_legend(title="Cut"))+
+  scale_y_continuous(name="Price")+
+  scale_x_continuous(name="Carat")+
+  theme_minimal()+
+  theme(
+    legend.position=c(0.15,0.8),
+    legend.background = element_rect(fill="#EFEFEF")
+  )
+
+g.density_x <- ggplot(diamond_sub, aes(x=carat, y=..density.., fill=cut))+
+  geom_density(position="stack")+
+  scale_fill_brewer(palette="Set1")+
+  scale_x_continuous(expand=c(0,0))+
+  theme_void()+
+  theme(
+    legend.position="none"
+  )
+
+g.density_y <- ggplot(diamond_sub, aes(x=price, y=..density.., fill=cut))+
+  geom_density(position="stack")+
+  scale_fill_brewer(palette="Set1")+
+  scale_x_continuous(expand=c(0,0))+
+  coord_flip()+ # Flip the coordinates so x is y, y i x
+  theme_void()+
+  theme(
+    legend.position="none"
+  )
+
+# Make our grobs
+g.scatter_grob   <- ggplotGrob(g.scatter)
+g.density_x_grob <- ggplotGrob(g.density_x)
+g.density_y_grob <- ggplotGrob(g.density_y)
+
+# Add a row and a column to the scatterplot where we'll add our density plots
+g.scatter_grob <- gtable_add_rows(g.scatter_grob,
+                                  unit(0.1,"npc"), # npc is a unit that's defined by the viewport
+                                  0) # position - we add to the top
+g.scatter_grob <- gtable_add_cols(g.scatter_grob,
+                                  unit(0.1,"npc"), # npc is a unit that's defined by the viewport
+                                  -1) # position - we add on the right
+
+# Let's check our layout
+g.scatter_grob$layout
+```
+
+```
+##     t l  b r  z clip       name
+## 18  2 1 11 7  0   on background
+## 1   6 3  6 3  5  off     spacer
+## 2   7 3  7 3  7  off     axis-l
+## 3   8 3  8 3  3  off     spacer
+## 4   6 4  6 4  6  off     axis-t
+## 5   7 4  7 4  1   on      panel
+## 6   8 4  8 4  9  off     axis-b
+## 7   6 5  6 5  4  off     spacer
+## 8   7 5  7 5  8  off     axis-r
+## 9   8 5  8 5  2  off     spacer
+## 10  5 4  5 4 10  off     xlab-t
+## 11  9 4  9 4 11  off     xlab-b
+## 12  7 2  7 2 12  off     ylab-l
+## 13  7 6  7 6 13  off     ylab-r
+## 14  7 4  7 4 14  off  guide-box
+## 15  4 4  4 4 15  off   subtitle
+## 16  3 4  3 4 16  off      title
+## 17 10 4 10 4 17  off    caption
+```
+
+```r
+# Now we add the density grobs
+g.scatter_grob <- gtable_add_grob(g.scatter_grob, g.density_x_grob, 
+                                  t = 1, l = 4, b = 1, r = 7)
+g.scatter_grob <- gtable_add_grob(g.scatter_grob, g.density_y_grob, 
+                                  t = 4, l = 8, b = 7, r = 8)
+
+grid.newpage()
+grid.draw(g.scatter_grob)
+```
+
+![](ggplot_guide_files/figure-html/unnamed-chunk-41-1.png)<!-- -->
+
+Todo: adding raw grobs
+
 ## LaTeX integration
+
+Not gonna make it here today... The gist of what I was going for here was that using knitr/sweave with LaTeX does particularly bad with ggplot's viewports.  With explicit specification of the height and width of our plots using gtable() we can overcome that problem.
 
 # Some DoPlots To Tittilate
 
@@ -693,7 +1087,7 @@ grid.newpage()
 grid.draw(g.combo)
 ```
 
-![](ggplot_guide_files/figure-html/unnamed-chunk-34-1.png)<!-- -->
+![](ggplot_guide_files/figure-html/unnamed-chunk-42-1.png)<!-- -->
 
 
 ## Heatmap & PCs
@@ -976,4 +1370,4 @@ load("data/pmc_x.R", .GlobalEnv)
   grid.draw(g.tokpc)
 ```
 
-![](ggplot_guide_files/figure-html/unnamed-chunk-35-1.png)<!-- -->
+![](ggplot_guide_files/figure-html/unnamed-chunk-43-1.png)<!-- -->
