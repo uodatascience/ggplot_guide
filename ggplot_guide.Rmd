@@ -1,9 +1,9 @@
 ---
 title: "ggplot2 Guide - 05/24/17"
 output: 
-  html_document: 
+  md_document:
     toc: yes
-    keep_md: true
+    toc_depth: 2
 ---
 
 This is an incomplete lesson, and an even worse reference meant to get someone on their feet & give them a survey of the powers of ggplot2. For a more complete guide see [the book](https://github.com/hadley/ggplot2-book) and for a more complete reference see [the documentation](http://ggplot2.tidyverse.org/reference/).
@@ -25,10 +25,10 @@ diamond_sub <- diamonds[sample(1:nrow(diamonds), 500, replace=FALSE),]
 
 What is a statistical graphic? The good ole boys [Wilkinson](http://www.springer.com/us/book/9780387245447) and [Wickham](http://www.tandfonline.com/doi/abs/10.1198/jcgs.2009.07098) tell us that they are
 
-* "Mappings from data to aesthetic attributes (colour, shape, size) 
-* Of geometric objects (points, lines bars)
-* On a particular coordinate system
-* Perhaps after a statistical transformation
+* **Mappings** from data to aesthetic attributes (colour, shape, size) 
+* Of **geometric objects** (points, lines bars)
+* On a particular **coordinate system**
+* Perhaps after a statistical **transformation**
 
 We'll follow their lead. In ggplot, that combination of things forms a layer. The terminology in ggplot is
 
@@ -36,6 +36,14 @@ We'll follow their lead. In ggplot, that combination of things forms a layer. Th
 * **geom** - geometric objects
 * **scale** - ...scales
 * **stat** - statistical transformations
+
+Reordered, the flow of information in ggplot2 is:
+* **data** is attached to the ggplot call, 
+* mapped by **aes**, and
+* transformed by **stat** before being passed to a
+* **geom**,
+* which is placed, sized, and colored according to its relevant **scales**
+* then ta-da! rendered plot.
 
 ## (Aes)thetic mappings
 
@@ -63,27 +71,28 @@ ggplot2:::GeomPoint
 ```
 Note the "required_aes" and "non_missing_aes" for required and optional aes, respectively.
 
-In general, you'll always have color (or colour, color is just an alias), x, and y. Commonly you'll also have fill for things that take up area, 
+In general, you'll always be able to map color (or colour, color is just an alias), x, and y. Commonly you'll also be able to map fill for things that take up area.
 
-Aesthetics, unless otherwise specified, apply to each added element. Within a given element, you can add, override, or remove aesthetics, like so:
+Aesthetics declared in the original call to `ggplot`, unless otherwise specified, apply to each added element. Within a given element, you can add, override, or remove aesthetics, like so:
 ```{r}
-# Add coloring by ... color, and modify y to make some lines by depth
+# Add coloring by ... color ... to the points
 ggplot(diamond_sub, aes(x=carat, y=price))+
-  geom_line(aes(y=price))+
+  geom_line()+
   geom_point(aes(color=color))
 ```
 
 ```{r}
-# Say we want color for a bunch of elements (not pictured) but not in our lines.
+# You can make the same plot (except for order) in a worse way by specifying color in the base ggplot call and removing it with NULL from the lines. 
 ggplot(diamond_sub, aes(x=carat, y=price, color=color))+
   geom_point()+
   geom_line(aes(color=NULL))
 ```
 
-Damn those are some ugly graphs, but this guide is about "can" not "should." Notice how the order in which you add elements matters. 
+Damn those are some ugly graphs, but this guide is about "can" not "should." Notice how the order in which you add elements matters - the plints are 'on top of' the lines in the first plot because the `geom_point` call came second, and vice-versa in the second plot.
 
 You can also perform operations within the aes(), say if you want to fatten out a ribbon without it being a big goofy line
 ```{r}
+# The economics dataset with an added 'epoch' factor to recolor every 100 points.
 economics_epoch <- economics
 economics_epoch$epoch <- as.factor(c(rep(1,100),
                                      rep(2,100),
@@ -93,7 +102,7 @@ ggplot(economics_epoch, aes(x=date,color=epoch))+
   geom_line(aes(y=unemploy), size=10)
 ```
 
-So goofy.
+So goofy. Compared to...
 
 ```{r}
 ggplot(economics_epoch, aes(x=date,fill=epoch))+
@@ -113,7 +122,7 @@ ggplot(economics_epoch, aes(x=date,color=epoch, fill=rev(epoch)))+
   geom_ribbon(aes(ymax=unemploy,ymin=unemploy-1000))
 ```
 
-You can also assign single values to an aes, though as we'll see, it's usually better to do that in a scale. You can give colors using [color names](http://www.stat.columbia.edu/~tzheng/files/Rcolor.pdf) or [RGB hex values](https://coolors.co) passed outside the aes argument - remember the aes is a mapping from the data to the geom! Assigning a `fill` within the aes argument assumes you mean that your hex value is a level in a factor (and who could blame it). 
+You can also assign single values to an aes, though as we'll see, it's usually better to do that in a scale. You can give colors using [color names](http://www.stat.columbia.edu/~tzheng/files/Rcolor.pdf) or [RGB hex values](https://coolors.co) passed outside the aes argument - remember the aes is a mapping from the data to the geom! Assigning a `fill` within the `aes` argument assumes you mean that your hex value is a level in a factor (and who could blame it), but assigning it outside the `aes` argument means that you are sending that color to the geom directly. 
 
 ```{r}
 ggplot(economics_epoch, aes(x=date))+
@@ -124,6 +133,10 @@ ggplot will do its best to figure out how to split your data when combining mult
 
 Say you want to split your data by two factors but don't want to make a new column in your dataframe or color them. You can use the `interaction()` function like (ignore the use of theme(), we'll get to that):
 ```{r}
+# we have tow factors, cut and color, with the levels...
+levels(diamond_sub$cut)
+levels(diamond_sub$color)
+# and we want to make a plot with all their permutations:
 ggplot(diamond_sub, aes(x=interaction(cut,color)))+
   geom_bar()+
   theme(
@@ -151,6 +164,13 @@ A classic histogram
 ggplot(diamond_sub, aes(x=price))+
   geom_histogram(color="white", bins = 20)
 ```
+
+This is equivalent to the call
+```{r}
+ggplot(diamond_sub, aes(x=price))+
+  stat_bin(geom="bar", color="white", bins = 20)
+```
+
 
 If instead one wants the scale as a density,
 
@@ -206,14 +226,13 @@ ggplot(midwest, aes(x=percbelowpoverty, y=inmetro))+
   geom_smooth(method="glm", method.args=list(family="binomial"), color="red")
 ```
 
-Most geoms can be controlled directly by calling their related stat. When doing so, we can select which geom we'd like to plot our error bars with.
+As we saw before, most geoms can be controlled directly by calling their related stat. When doing so, we can select which geom we'd like to plot our error bars with.
 
 ```{r}
 ggplot(economics, aes(x=date, y=unemploy))+
   geom_line(color="gray")+
   stat_smooth(geom="linerange", size = 0.5, method="loess", level=0.99)
 ```
-
 
 How about some denser data. Remember our very first plot? There's a whole lot more data that we randomly ignored. What if we weren't some fraudulators and didn't conveniently "lose our data?"
 
@@ -233,12 +252,49 @@ Turns out it's really easy to misrepresent your data if it's not presented in a 
 
 ```{r}
 ggplot(diamonds, aes(x=carat, y=price))+
-  stat_density_2d(geom = "point", aes(size = ..density..), n=50, contour = F)
+  stat_density_2d(geom = "point", aes(size = ..density.., color= ..density..), n=50, contour = F)
 ```
 
 ## Position
 
 Is also important but I'm not covering it right now. ve most deel vis it.
+
+Until I do, if your bar charts aren't looking right just monkey around on google with the phrase `dodge`
+
+```{r}
+ggplot(diamond_sub, aes(x=price, fill=cut))+
+  geom_histogram()
+```
+
+```{r}
+ggplot(diamond_sub, aes(x=price, fill=cut))+
+  geom_histogram(position="dodge")
+```
+
+and maybe jitter
+
+```{r}
+ggplot(diamond_sub, aes(x=cut, y=price))+
+  geom_point()
+```
+```{r}
+ggplot(diamond_sub, aes(x=cut, y=price))+
+  geom_point(position=position_jitter(width=0.25))
+```
+
+and maybe one more with `fill`
+
+```{r}
+ggplot(diamonds, aes(x=price, fill=cut))+
+  geom_histogram(bins=50)
+```
+
+```{r}
+ggplot(diamonds, aes(x=price, fill=cut))+
+  geom_histogram(bins=50, position="fill")
+```
+
+
 
 # A Layout
 
@@ -350,13 +406,13 @@ Sometimes you want to be all draped in pearls and roses, and other times you jus
 ggplot(diamond_sub, aes(x=carat,y=price,color=price))+
   geom_point()+
   theme(
-    panel.background= element_blank(),
-    panel.grid      = element_blank(),
-    axis.text       = element_blank(),
-    axis.ticks      = element_blank(),
-    axis.title      = element_blank(),
-    axis.line       = element_line(),
-    legend.position = "none"
+    panel.background = element_blank(),
+    panel.grid       = element_blank(),
+    axis.text        = element_blank(),
+    axis.ticks       = element_blank(),
+    axis.title       = element_blank(),
+    axis.line        = element_line(),
+    legend.position  = "none"
   )
 ```
 
@@ -618,6 +674,10 @@ Todo: adding raw grobs
 ## LaTeX integration
 
 Not gonna make it here today... The gist of what I was going for here was that using knitr/sweave with LaTeX does particularly bad with ggplot's viewports.  With explicit specification of the height and width of our plots using gtable() we can overcome that problem.
+
+# Extensions
+
+> Cowplot
 
 # Some DoPlots To Tittilate
 
